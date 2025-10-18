@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ESP32-S3 HID Keyboard + Mouse</title>
+<style>
+body {
+  background:#111;
+  color:#fff;
+  margin:0;
+  font-family:sans-serif;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:1vh 0;
+}
+
+h2 {
+  margin:10px;
+  text-align:center;
+  font-size:clamp(1rem,4vw,2rem);
+}
+
+#keyboard {
+  display:flex;
+  flex-direction:column;
+  width:95vw;
+  max-width:100%;
+  margin-top:1vh;
+  gap:0.2em;
+}
+
+.row {
+  display:grid;
+  gap:0.2em;
+}
+
+/* All keys default */
+.key {
+  background:#333;
+  border-radius:0.4em;
+  text-align:center;
+  cursor:pointer;
+  user-select:none;
+  font-size:clamp(0.6rem,2vw,1rem);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  aspect-ratio: 1.4 / 1;
+}
+
+/* Special keys */
+.key.space { aspect-ratio:auto; }
+.key.arrow { font-size: clamp(0.5rem,1.5vw,0.8rem); }
+.key.ctrl, .key.alt { } /* handled by grid fractions */
+
+/* Active key highlight */
+.key.active { background:#0a0; }
+
+/* Touchpad */
+#touchpad-container {
+  position:relative;
+  width:95vw;
+  max-width:100%;
+  height:25vh;
+  background:#222;
+  border:2px solid #555;
+  border-radius:10px;
+  margin:2vh 0;
+  touch-action:none;
+  overflow:hidden;
+}
+
+#cursor {
+  position:absolute;
+  width:3vw;
+  max-width:15px;
+  height:3vw;
+  max-height:15px;
+  background:#0f0;
+  border-radius:50%;
+  pointer-events:none;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+}
+
+/* Mouse buttons */
+#mouse-buttons {
+  display:flex;
+  gap:1em;
+  flex-wrap:wrap;
+  justify-content:center;
+  margin-bottom:2vh;
+}
+
+.mouse-btn {
+  flex:1 1 30%;
+  background: #333;
+  color: #fff;
+  text-align: center;
+  padding: 0.8em 0;
+  border-radius: 0.5em;
+  cursor: pointer;
+  user-select: none;
+  font-size: clamp(0.8rem, 2vw, 1rem);
+}
+
+.mouse-btn:active { background: #0a0; }
+</style>
+</head>
+<body>
+<h2>ESP32-S3 HID Keyboard + Mouse</h2>
+
+<div id="keyboard">
+  <div class="row" id="rowF"></div>
+  <div class="row" id="rowNum"></div>
+  <div class="row" id="row1"></div>
+  <div class="row" id="row2"></div>
+  <div class="row" id="row3"></div>
+  <div class="row" id="row4"></div>
+</div>
+
+<div id="touchpad-container"><div id="cursor"></div></div>
+
+<div id="mouse-buttons">
+  <div class="mouse-btn" data-button="left">Left</div>
+  <div class="mouse-btn" data-button="middle">Middle</div>
+  <div class="mouse-btn" data-button="right">Right</div>
+</div>
+
+<script>
+// Keyboard layout
+const rows = {
+  rowF:["Esc","F1","F2","F3","F4","F5","F6","F7","F8","F9","F10","F11","F12"],
+  rowNum:["`","1","2","3","4","5","6","7","8","9","0","-","=","⌫"],
+  row1:["Tab","Q","W","E","R","T","Y","U","I","O","P","[","]","\\"],
+  row2:["Caps","A","S","D","F","G","H","J","K","L",";","'","Enter"],
+  row3:["Shift","Z","X","C","V","B","N","M",",",".","/"],
+  row4:["Ctrl","Alt","Space","←","↑","↓","→"]
+};
+const shiftedSymbols = {
+  "`":"~","1":"!","2":"@","3":"#","4":"$","5":"%","6":"^","7":"&","8":"*","9":"(","0":")",
+  "-":"_","=":"+","[":"{","]":"}","\\":"|",";":":","'":"\"",
+  ",":"<",".":">","/":"?"
+};
+
+let caps=false, shift=false, alt=false, ctrl=false;
+
+// Create keyboard
+function createKeyboard(){
+  for(const row in rows){
+    const container=document.getElementById(row);
+
+    // last row with proportional widths
+    if(row === "row4") {
+      container.style.gridTemplateColumns = "1fr 1fr 5fr 0.25fr 0.25fr 0.25fr 0.25fr";
+    } else {
+      const numKeys = rows[row].length;
+      container.style.gridTemplateColumns = `repeat(${numKeys}, 1fr)`;
+    }
+
+    rows[row].forEach(k=>{
+      const div=document.createElement("div");
+      div.classList.add("key");
+
+      if(k==="Space") div.classList.add("space"); 
+      if(["←","↑","↓","→"].includes(k)) div.classList.add("arrow");
+      if(k==="Ctrl") div.classList.add("ctrl");
+      if(k==="Alt") div.classList.add("alt");
+
+      div.textContent = k;
+      div.dataset.key = k;
+      div.onclick = () => handleKeyClick(k);
+      container.appendChild(div);
+    });
+  }
+  updateKeyLabels();
+}
+
+function updateKeyLabels() {
+  document.querySelectorAll(".key").forEach(el => {
+    const k = el.dataset.key;
+    if(k.length===1 && /[a-zA-Z]/.test(k)){
+      if((caps && !shift) || (!caps && shift)) el.textContent = k.toUpperCase();
+      else el.textContent = k.toLowerCase();
+    } else if(shift && shiftedSymbols[k]) el.textContent = shiftedSymbols[k];
+    else el.textContent = k;
+  });
+}
+
+function handleKeyClick(k){
+  const keyText = k;
+  const keyDiv = Array.from(document.querySelectorAll(".key"))
+                       .find(el => el.dataset.key.toLowerCase() === keyText.toLowerCase());
+
+  if(keyDiv){
+    keyDiv.classList.add("active");
+    setTimeout(() => keyDiv.classList.remove("active"), 150);
+  }
+
+  if(keyText==="Shift"){shift=!shift;toggleActive("Shift",shift);updateKeyLabels();return;}
+  if(keyText==="Caps"){caps=!caps;toggleActive("Caps",caps);updateKeyLabels();return;}
+  if(keyText==="Alt"){alt=!alt;toggleActive("Alt",alt);return;}
+  if(keyText==="Ctrl"){ctrl=!ctrl;toggleActive("Ctrl",ctrl);return;}
+
+  let outKey = keyText;
+  let lower = keyText;
+  let upper = keyText;
+  let shifted = shiftedSymbols[keyText] || keyText;
+
+  if(keyText.length === 1) {
+    if(/[a-zA-Z]/.test(keyText)) {
+      lower = keyText.toLowerCase();
+      upper = keyText.toUpperCase();
+      shifted = upper;
+      if((caps&&!shift)||(!caps&&shift)) outKey = upper;
+      else outKey = lower;
+    } else if(shiftedSymbols[keyText]) {
+      lower = keyText;
+      upper = keyText;
+      shifted = shiftedSymbols[keyText];
+      outKey = shift ? shifted : keyText;
+    }
+  }
+
+  fetch(`/press?key=${encodeURIComponent(outKey)}&lower=${encodeURIComponent(lower)}&upper=${encodeURIComponent(upper)}&shifted=${encodeURIComponent(shifted)}&shift=${shift}&ctrl=${ctrl}&alt=${alt}`)
+    .catch(()=>{});
+
+  if(shift){shift=false;toggleActive("Shift",false);updateKeyLabels();}
+}
+
+function toggleActive(key,state){
+  document.querySelectorAll(".key").forEach(el=>{
+    if(el.dataset.key.toLowerCase()===key.toLowerCase())
+      el.classList.toggle("active",state);
+  });
+}
+
+// Touchpad
+const pad=document.getElementById("touchpad-container");
+const cursor=document.getElementById("cursor");
+let cursorX=50, cursorY=50, isDown=false, lastX=0, lastY=0;
+
+function updateCursor(){ cursor.style.left=cursorX+"%"; cursor.style.top=cursorY+"%"; }
+
+function handleMove(dx,dy){
+  fetch(`/move?dx=${dx}&dy=${dy}`).catch(()=>{});
+  const rect=pad.getBoundingClientRect();
+  cursorX += dx/rect.width*100;
+  cursorY += dy/rect.height*100;
+  cursorX=Math.max(0,Math.min(100,cursorX));
+  cursorY=Math.max(0,Math.min(100,cursorY));
+  updateCursor();
+}
+
+pad.addEventListener("touchstart",e=>{
+  const t=e.touches[0]; lastX=t.clientX; lastY=t.clientY;
+});
+pad.addEventListener("touchmove",e=>{
+  const t=e.touches[0]; const dx=t.clientX-lastX; const dy=t.clientY-lastY;
+  lastX=t.clientX; lastY=t.clientY; handleMove(dx,dy);
+});
+pad.addEventListener("touchend",()=>{fetch("/click").catch(()=>{});recenterCursor();});
+
+pad.addEventListener("mousedown",e=>{isDown=true;lastX=e.clientX;lastY=e.clientY;});
+pad.addEventListener("mousemove",e=>{
+  if(!isDown)return; const dx=e.clientX-lastX; const dy=e.clientY-lastY;
+  lastX=e.clientX; lastY=e.clientY; handleMove(dx,dy);
+});
+pad.addEventListener("mouseup",()=>{isDown=false;fetch("/click").catch(()=>{});recenterCursor();});
+
+function recenterCursor(){cursorX=50;cursorY=50;updateCursor();}
+
+document.querySelectorAll(".mouse-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    const button = btn.dataset.button;
+    fetch(`/click?button=${button}`).catch(()=>{});
+  });
+});
+
+createKeyboard();
+updateCursor();
+</script>
+</body>
+</html>
