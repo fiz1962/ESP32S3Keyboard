@@ -61,7 +61,7 @@ h2 {
 /* Touchpad */
 #touchpad-container {
   position:relative;
-  width:47.5vw;   /* half of 95vw */
+  width:47.5vw;
   max-width:50%;
   height:25vh;
   background:#222;
@@ -86,7 +86,7 @@ h2 {
   transform:translate(-50%,-50%);
 }
 
-/* Mouse buttons (¼ original width) */
+/* Mouse buttons (¼ width) */
 #mouse-buttons {
   display:grid;
   grid-template-columns: repeat(3, 0.25fr);
@@ -125,7 +125,6 @@ h2 {
 
 <div id="touchpad-container"><div id="cursor"></div></div>
 
-<!-- Mouse buttons now smaller (¼ width each) -->
 <div id="mouse-buttons">
   <div class="mouse-btn" data-button="left">Left</div>
   <div class="mouse-btn" data-button="middle">Middle</div>
@@ -199,14 +198,27 @@ function handleKeyClick(k){
 
   if(keyDiv){
     keyDiv.classList.add("active");
-    setTimeout(() => keyDiv.classList.remove("active"), 150);
+    setTimeout(() => {
+      if(keyText !== "Ctrl" && keyText !== "Alt") keyDiv.classList.remove("active");
+    }, 150);
   }
 
   if(keyText==="Shift"){shift=!shift;toggleActive("Shift",shift);updateKeyLabels();return;}
   if(keyText==="Caps"){caps=!caps;toggleActive("Caps",caps);updateKeyLabels();return;}
-  if(keyText==="Alt"){alt=!alt;toggleActive("Alt",alt);return;}
-  if(keyText==="Ctrl"){ctrl=!ctrl;toggleActive("Ctrl",ctrl);return;}
+  
+  if(keyText==="Ctrl"){
+    ctrl=!ctrl;
+    toggleActive("Ctrl",ctrl);
+    return;
+  }
 
+  if(keyText==="Alt"){
+    alt=!alt;
+    toggleActive("Alt",alt);
+    return;
+  }
+
+  // ---- Regular key pressed ----
   let outKey = keyText;
   let lower = keyText;
   let upper = keyText;
@@ -230,7 +242,12 @@ function handleKeyClick(k){
   fetch(`/press?key=${encodeURIComponent(outKey)}&lower=${encodeURIComponent(lower)}&upper=${encodeURIComponent(upper)}&shifted=${encodeURIComponent(shifted)}&shift=${shift}&ctrl=${ctrl}&alt=${alt}`)
     .catch(()=>{});
 
+  // Release one-shot modifiers
   if(shift){shift=false;toggleActive("Shift",false);updateKeyLabels();}
+
+  // If any regular key pressed, release Ctrl and Alt (and unlight them)
+  if(ctrl){ctrl=false;toggleActive("Ctrl",false);}
+  if(alt){alt=false;toggleActive("Alt",false);}
 }
 
 function toggleActive(key,state){
