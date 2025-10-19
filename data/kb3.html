@@ -61,8 +61,8 @@ h2 {
 /* Touchpad */
 #touchpad-container {
   position:relative;
-  width:95vw;
-  max-width:100%;
+  width:47.5vw;   /* half of 95vw */
+  max-width:50%;
   height:25vh;
   background:#222;
   border:2px solid #555;
@@ -86,28 +86,29 @@ h2 {
   transform:translate(-50%,-50%);
 }
 
-/* Mouse buttons */
+/* Mouse buttons (¼ original width) */
 #mouse-buttons {
-  display:flex;
-  gap:1em;
-  flex-wrap:wrap;
+  display:grid;
+  grid-template-columns: repeat(3, 0.25fr);
   justify-content:center;
+  gap:1em;
+  width:47.5vw;
+  max-width:100%;
   margin-bottom:2vh;
 }
 
 .mouse-btn {
-  flex:1 1 30%;
-  background: #333;
-  color: #fff;
-  text-align: center;
-  padding: 0.8em 0;
-  border-radius: 0.5em;
-  cursor: pointer;
-  user-select: none;
-  font-size: clamp(0.8rem, 2vw, 1rem);
+  background:#333;
+  color:#fff;
+  text-align:center;
+  padding:1em 0;
+  border-radius:0.5em;
+  cursor:pointer;
+  user-select:none;
+  font-size:clamp(0.8rem,2vw,1rem);
 }
 
-.mouse-btn:active { background: #0a0; }
+.mouse-btn:active { background:#0a0; }
 </style>
 </head>
 <body>
@@ -124,6 +125,7 @@ h2 {
 
 <div id="touchpad-container"><div id="cursor"></div></div>
 
+<!-- Mouse buttons now smaller (¼ width each) -->
 <div id="mouse-buttons">
   <div class="mouse-btn" data-button="left">Left</div>
   <div class="mouse-btn" data-button="middle">Middle</div>
