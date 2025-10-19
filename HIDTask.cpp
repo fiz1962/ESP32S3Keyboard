@@ -1,5 +1,8 @@
 #include "HIDTask.h"
 
+void sendRawKey(uint8_t modifier, uint8_t keycode);
+void sendCharRaw(char c);
+
 void moveMouse(int dx, int dy) {
   Mouse.move(dx, dy);
 }
@@ -7,16 +10,14 @@ void moveMouse(int dx, int dy) {
 void pressKey(String key, bool shift, bool ctrl, bool alt) {
   if (ctrl) Keyboard.press(KEY_LEFT_CTRL);
   if (alt)  Keyboard.press(KEY_LEFT_ALT);
-  if (shift) Keyboard.press(KEY_LEFT_SHIFT);
+  if (shift) {Keyboard.press(KEY_LEFT_SHIFT);delay(100);}
 //KEY_UP_ARROW 
-  if (key.length() == 1 && key != "↑" && key != "↓" && key != "←" && key != "→" ) {
-    Keyboard.press(key[0]);
+if (key.length() == 1 && key != "↑" && key != "↓" && key != "←" && key != "→" ) {
+    Keyboard.write(key[0]);
     delay(10);
-    Keyboard.release(key[0]);
-    //Serial.print("HID Key:");
-    //Serial.println(key);
   } else if (key == "Enter") {
     Keyboard.press(KEY_RETURN);
+    delay(100);
     Keyboard.release(KEY_RETURN);
   } else if (key == "Tab") {
     Keyboard.press(KEY_TAB);
@@ -55,8 +56,11 @@ void pressKey(String key, bool shift, bool ctrl, bool alt) {
     Keyboard.release(' ');
   }
 
-  Keyboard.releaseAll();
+   if (shift) {delay(100);Keyboard.release(KEY_LEFT_SHIFT);}
+   if (alt) {delay(100);Keyboard.release(KEY_LEFT_ALT);}
+   if (ctrl) {delay(100);Keyboard.release(KEY_LEFT_CTRL);}
 }
+
 
 void HIDTask(void* pv) {
   USB.begin();

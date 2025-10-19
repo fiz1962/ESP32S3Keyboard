@@ -104,10 +104,10 @@ void core1Task(void* pv) {
 
   // Keyboard events
   server.on("/press", HTTP_GET, [](AsyncWebServerRequest* r) {
-    if (r->hasParam("key")) {
+    if (r->hasParam("lower")) {
       HIDEvent ev;
       ev.type = KEY;
-      ev.key = r->getParam("key")->value();
+      ev.key = r->getParam("lower")->value();
       ev.shift = r->hasParam("shift") && r->getParam("shift")->value() == "true";
       ev.ctrl  = r->hasParam("ctrl")  && r->getParam("ctrl")->value() == "true";
       ev.alt   = r->hasParam("alt")   && r->getParam("alt")->value() == "true";
